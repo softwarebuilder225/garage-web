@@ -11,7 +11,122 @@
         </p>
       }
     </div>
+
+    <button
+      mat-flat-button
+      type="button"
+      class="download-button"
+      [disabled]="downloadingCsv() || loading()"
+      (click)="downloadCsv()"
+    >
+      <mat-icon>download</mat-icon>
+      {{ downloadingCsv() ? 'Downloading…' : 'Download CSV' }}
+    </button>
   </header>
+
+  @if (downloadError()) {
+    <p class="form-message error download-error" role="alert">{{ downloadError() }}</p>
+  }
+
+  <section class="add-car card-section">
+    <div class="section-heading">
+      <div>
+        <h2>Add a car</h2>
+        <p>Add a new car to the catalogue for John.</p>
+      </div>
+    </div>
+
+    @if (addCarMessage()) {
+      <p class="form-message success">{{ addCarMessage() }}</p>
+    }
+
+    @if (addCarError()) {
+      <p class="form-message error">{{ addCarError() }}</p>
+    }
+
+    <form class="add-car-form" [formGroup]="addCarForm" (ngSubmit)="submitCar()">
+      <mat-form-field appearance="outline" class="wide-field">
+        <mat-label>Car name</mat-label>
+        <input matInput formControlName="name" maxlength="120" />
+        @if (fieldHasError('name')) {
+          <mat-error>{{ fieldError('name') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Origin</mat-label>
+        <mat-select formControlName="origin">
+          @for (origin of origins; track origin) {
+            <mat-option [value]="origin">{{ originLabels[origin] }}</mat-option>
+          }
+        </mat-select>
+        @if (fieldHasError('origin')) {
+          <mat-error>{{ fieldError('origin') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Year</mat-label>
+        <input matInput formControlName="modelYear" type="number" min="1900" max="2030" />
+        @if (fieldHasError('modelYear')) {
+          <mat-error>{{ fieldError('modelYear') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Cylinders</mat-label>
+        <mat-select formControlName="cylinders">
+          @for (count of cylinderOptions; track count) {
+            <mat-option [value]="'' + count">{{ count }}</mat-option>
+          }
+        </mat-select>
+        @if (fieldHasError('cylinders')) {
+          <mat-error>{{ fieldError('cylinders') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Displacement</mat-label>
+        <input matInput formControlName="displacement" type="number" min="1" />
+        @if (fieldHasError('displacement')) {
+          <mat-error>{{ fieldError('displacement') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Weight (lbs)</mat-label>
+        <input matInput formControlName="weight" type="number" min="1" />
+        @if (fieldHasError('weight')) {
+          <mat-error>{{ fieldError('weight') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Acceleration (sec)</mat-label>
+        <input matInput formControlName="acceleration" type="number" min="1" step="0.1" />
+        @if (fieldHasError('acceleration')) {
+          <mat-error>{{ fieldError('acceleration') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>MPG</mat-label>
+        <input matInput formControlName="mpg" type="number" min="0" step="0.1" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Horsepower</mat-label>
+        <input matInput formControlName="horsepower" type="number" min="0" />
+      </mat-form-field>
+
+      <div class="form-actions">
+        <button mat-flat-button type="submit" [disabled]="savingCar()">
+          <mat-icon>add</mat-icon>
+          {{ savingCar() ? 'Saving…' : 'Add car' }}
+        </button>
+      </div>
+    </form>
+  </section>
 
   <form class="filters" [formGroup]="filterForm">
     <mat-form-field appearance="outline" class="search">

@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,6 +26,7 @@ import {
   ORIGIN_LABELS,
   type Car,
   type CarListQuery,
+  type CreateCarInput,
   type CarSortField,
 } from '../../models/car';
 import { CarsService } from '../../services/cars.service';
@@ -78,11 +79,28 @@ export class Catalogue {
     maxMpg: [''],
   });
 
+  readonly addCarForm = this.formBuilder.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(120)]],
+    mpg: [''],
+    cylinders: ['4', [Validators.required]],
+    displacement: ['', [Validators.required]],
+    horsepower: [''],
+    weight: ['', [Validators.required]],
+    acceleration: ['', [Validators.required]],
+    modelYear: ['', [Validators.required]],
+    origin: ['usa', [Validators.required]],
+  });
+
   readonly filters = signal<CarListQuery>({ ...DEFAULT_CAR_LIST_QUERY });
   readonly cars = signal<Car[]>([]);
   readonly total = signal(0);
   readonly loading = signal(true);
+  readonly savingCar = signal(false);
+  readonly downloadingCsv = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly addCarMessage = signal<string | null>(null);
+  readonly addCarError = signal<string | null>(null);
+  readonly downloadError = signal<string | null>(null);
 
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
@@ -137,6 +155,150 @@ export class Catalogue {
     this.loadCars(this.filters());
   }
 
+  downloadCsv(): void {
+    this.downloadingCsv.set(true);
+    this.downloadError.set(null);
+
+    this.carsService.exportCsv(this.filters()).subscribe({
+      next: (response) => {
+        this.downloadingCsv.set(false);
+        const blob = response.body;
+
+        if (!blob) {
+          this.downloadError.set('The download came back empty. Please try again.');
+          return;
+        }
+
+        if (blob.type.includes('application/json')) {
+          void blob.text().then((text) => {
+            try {
+              const parsed = JSON.parse(text) as { error?: string };
+              this.downloadError.set(
+                parsed.error ?? 'Could not download the CSV. Please try again.',
+              );
+            } catch {
+              this.downloadError.set('Could not download the CSV. Please try again.');
+            }
+          });
+          return;
+        }
+
+        this.saveFile(blob, this.filenameFromResponse(response.headers.get('Content-Disposition')));
+      },
+      error: (error: unknown) => {
+        this.downloadingCsv.set(false);
+
+        if (error instanceof HttpErrorResponse && error.error instanceof Blob) {
+          void error.error.text().then((text) => {
+            try {
+              const parsed = JSON.parse(text) as { error?: string };
+              this.downloadError.set(
+                parsed.error ?? 'Could not download the CSV. Please try again.',
+              );
+            } catch {
+              this.downloadError.set(this.readDownloadErrorMessage(error));
+            }
+          });
+          return;
+        }
+
+        this.downloadError.set(this.readDownloadErrorMessage(error));
+      },
+    });
+  }
+
+  submitCar(): void {
+    if (this.addCarForm.invalid) {
+      this.addCarForm.markAllAsTouched();
+      return;
+    }
+
+    this.savingCar.set(true);
+    this.addCarMessage.set(null);
+    this.addCarError.set(null);
+
+    this.carsService.create(this.createCarPayload()).subscribe({
+      next: () => {
+        this.savingCar.set(false);
+        this.addCarMessage.set('Car added successfully.');
+        this.addCarForm.reset({
+          name: '',
+          mpg: '',
+          cylinders: '4',
+          displacement: '',
+          horsepower: '',
+          weight: '',
+          acceleration: '',
+          modelYear: '',
+          origin: 'usa',
+        });
+        this.loadCars(this.filters());
+      },
+      error: (error: unknown) => {
+        this.savingCar.set(false);
+        this.addCarError.set(this.readCreateErrorMessage(error));
+      },
+    });
+  }
+
+  fieldHasError(
+    controlName:
+      | 'name'
+      | 'mpg'
+      | 'cylinders'
+      | 'displacement'
+      | 'horsepower'
+      | 'weight'
+      | 'acceleration'
+      | 'modelYear'
+      | 'origin',
+  ): boolean {
+    const control = this.addCarForm.controls[controlName];
+    return control.invalid && (control.touched || control.dirty);
+  }
+
+  fieldError(
+    controlName:
+      | 'name'
+      | 'mpg'
+      | 'cylinders'
+      | 'displacement'
+      | 'horsepower'
+      | 'weight'
+      | 'acceleration'
+      | 'modelYear'
+      | 'origin',
+  ): string {
+    const control = this.addCarForm.controls[controlName];
+
+    if (control.hasError('required')) {
+      switch (controlName) {
+        case 'name':
+          return 'Car name is required.';
+        case 'cylinders':
+          return 'Cylinders is required.';
+        case 'displacement':
+          return 'Displacement is required.';
+        case 'weight':
+          return 'Weight is required.';
+        case 'acceleration':
+          return 'Acceleration is required.';
+        case 'modelYear':
+          return 'Year is required.';
+        case 'origin':
+          return 'Origin is required.';
+        default:
+          return 'This field is required.';
+      }
+    }
+
+    if (control.hasError('maxlength')) {
+      return 'Car name is too long.';
+    }
+
+    return 'Please check this field.';
+  }
+
   private patchForm(query: CarListQuery): void {
     this.filterForm.patchValue(
       {
@@ -188,6 +350,22 @@ export class Catalogue {
     });
   }
 
+  private createCarPayload(): CreateCarInput {
+    const value = this.addCarForm.getRawValue();
+
+    return {
+      name: value.name.trim(),
+      mpg: value.mpg === '' ? null : Number(value.mpg),
+      cylinders: Number(value.cylinders),
+      displacement: Number(value.displacement),
+      horsepower: value.horsepower === '' ? null : Number(value.horsepower),
+      weight: Number(value.weight),
+      acceleration: Number(value.acceleration),
+      modelYear: Number(value.modelYear),
+      origin: value.origin as CreateCarInput['origin'],
+    };
+  }
+
   private readErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
       const apiError = error.error as { error?: string } | null;
@@ -202,5 +380,60 @@ export class Catalogue {
     }
 
     return 'Something went wrong while loading your cars. Please try again.';
+  }
+
+  private readCreateErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const apiError = error.error as
+        | { error?: string; details?: Record<string, string[]> }
+        | null;
+
+      if (apiError?.details) {
+        const firstFieldError = Object.values(apiError.details)[0]?.[0];
+        if (firstFieldError) {
+          return firstFieldError;
+        }
+      }
+
+      if (apiError?.error) {
+        return apiError.error;
+      }
+
+      if (error.status === 0) {
+        return 'Cannot reach the server. Please make sure the API is running, then try again.';
+      }
+    }
+
+    return 'Could not save the car. Please try again.';
+  }
+
+  private readDownloadErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'Cannot reach the server. Please make sure the API is running, then try again.';
+      }
+
+      const apiError = error.error as { error?: string } | Blob | null;
+
+      if (apiError && typeof apiError === 'object' && 'error' in apiError && apiError.error) {
+        return apiError.error;
+      }
+    }
+
+    return 'Could not download the CSV. Please try again.';
+  }
+
+  private filenameFromResponse(header: string | null): string {
+    const match = header?.match(/filename="?([^"]+)"?/i);
+    return match?.[1] ?? `johns-garage-cars-${new Date().toISOString().slice(0, 10)}.csv`;
+  }
+
+  private saveFile(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

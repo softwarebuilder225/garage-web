@@ -44,6 +44,18 @@ export interface CarListQuery {
   order: SortOrder;
 }
 
+export interface CreateCarInput {
+  name: string;
+  mpg: number | null;
+  cylinders: number;
+  displacement: number;
+  horsepower: number | null;
+  weight: number;
+  acceleration: number;
+  modelYear: number;
+  origin: CarOrigin;
+}
+
 export const ORIGIN_LABELS: Record<CarOrigin, string> = {
   usa: 'USA',
   europe: 'Europe',
