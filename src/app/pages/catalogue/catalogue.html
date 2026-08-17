@@ -1,0 +1,78 @@
+<section class="catalogue">
+  <header class="catalogue-header">
+    <div>
+      <h1>Your cars</h1>
+      @if (!loading() && !errorMessage()) {
+        <p class="count">{{ total() }} {{ total() === 1 ? 'car' : 'cars' }}</p>
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="status" role="status">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading your cars…</p>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="status error" role="alert">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <p>{{ errorMessage() }}</p>
+      <button mat-flat-button type="button" (click)="loadCars()">
+        <mat-icon>refresh</mat-icon>
+        Try again
+      </button>
+    </div>
+  } @else if (cars().length === 0) {
+    <div class="status">
+      <mat-icon aria-hidden="true">directions_car</mat-icon>
+      <p>No cars in the catalogue yet.</p>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table mat-table [dataSource]="cars()" class="cars-table">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <td mat-cell *matCellDef="let car">{{ car.name }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="modelYear">
+          <th mat-header-cell *matHeaderCellDef>Year</th>
+          <td mat-cell *matCellDef="let car">{{ car.modelYear }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="origin">
+          <th mat-header-cell *matHeaderCellDef>Origin</th>
+          <td mat-cell *matCellDef="let car">{{ originLabel(car.origin) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="mpg">
+          <th mat-header-cell *matHeaderCellDef>MPG</th>
+          <td mat-cell *matCellDef="let car">{{ formatNumber(car.mpg) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="cylinders">
+          <th mat-header-cell *matHeaderCellDef>Cylinders</th>
+          <td mat-cell *matCellDef="let car">{{ car.cylinders }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="horsepower">
+          <th mat-header-cell *matHeaderCellDef>Horsepower</th>
+          <td mat-cell *matCellDef="let car">{{ formatNumber(car.horsepower) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="weight">
+          <th mat-header-cell *matHeaderCellDef>Weight (lbs)</th>
+          <td mat-cell *matCellDef="let car">{{ car.weight }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="acceleration">
+          <th mat-header-cell *matHeaderCellDef>0–60 (sec)</th>
+          <td mat-cell *matCellDef="let car">{{ car.acceleration }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
+  }
+</section>
