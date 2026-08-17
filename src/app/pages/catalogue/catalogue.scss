@@ -16,6 +16,26 @@
   font-size: 1.05rem;
 }
 
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: start;
+  padding: 1rem 1rem 0.25rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+
+.search {
+  grid-column: 1 / -1;
+}
+
+.clear-filters {
+  margin: 0.35rem 0 1rem;
+  height: 3.25rem;
+}
+
 .status {
   display: flex;
   flex-direction: column;
@@ -34,11 +54,15 @@
   max-width: 32rem;
 }
 
-.status.error mat-icon {
-  color: #b3261e;
+.status.error mat-icon,
+.status mat-icon {
   font-size: 2rem;
   width: 2rem;
   height: 2rem;
+}
+
+.status.error mat-icon {
+  color: #b3261e;
 }
 
 .table-wrap {
@@ -65,4 +89,10 @@
 
 .cars-table .mat-mdc-row:hover {
   background: #f3f6fb;
+}
+
+@media (min-width: 900px) {
+  .search {
+    grid-column: span 2;
+  }
 }

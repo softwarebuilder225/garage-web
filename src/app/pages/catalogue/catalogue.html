@@ -3,10 +3,70 @@
     <div>
       <h1>Your cars</h1>
       @if (!loading() && !errorMessage()) {
-        <p class="count">{{ total() }} {{ total() === 1 ? 'car' : 'cars' }}</p>
+        <p class="count">
+          {{ total() }} {{ total() === 1 ? 'car' : 'cars' }}
+          @if (filtersActive()) {
+            matching your search
+          }
+        </p>
       }
     </div>
   </header>
+
+  <form class="filters" [formGroup]="filterForm">
+    <mat-form-field appearance="outline" class="search">
+      <mat-label>Search by name</mat-label>
+      <input matInput formControlName="q" type="search" autocomplete="off" />
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Origin</mat-label>
+      <mat-select formControlName="origin">
+        <mat-option value="">All countries</mat-option>
+        @for (origin of origins; track origin) {
+          <mat-option [value]="origin">{{ originLabels[origin] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Cylinders</mat-label>
+      <mat-select formControlName="cylinders">
+        <mat-option value="">Any</mat-option>
+        @for (count of cylinderOptions; track count) {
+          <mat-option [value]="'' + count">{{ count }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>From year</mat-label>
+      <input matInput formControlName="minYear" type="number" min="1900" max="2030" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>To year</mat-label>
+      <input matInput formControlName="maxYear" type="number" min="1900" max="2030" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Min MPG</mat-label>
+      <input matInput formControlName="minMpg" type="number" min="0" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Max MPG</mat-label>
+      <input matInput formControlName="maxMpg" type="number" min="0" />
+    </mat-form-field>
+
+    @if (filtersActive()) {
+      <button mat-stroked-button type="button" class="clear-filters" (click)="clearFilters()">
+        <mat-icon>filter_alt_off</mat-icon>
+        Clear filters
+      </button>
+    }
+  </form>
 
   @if (loading()) {
     <div class="status" role="status">
@@ -17,56 +77,70 @@
     <div class="status error" role="alert">
       <mat-icon aria-hidden="true">error_outline</mat-icon>
       <p>{{ errorMessage() }}</p>
-      <button mat-flat-button type="button" (click)="loadCars()">
+      <button mat-flat-button type="button" (click)="retry()">
         <mat-icon>refresh</mat-icon>
         Try again
       </button>
     </div>
   } @else if (cars().length === 0) {
     <div class="status">
-      <mat-icon aria-hidden="true">directions_car</mat-icon>
-      <p>No cars in the catalogue yet.</p>
+      <mat-icon aria-hidden="true">search_off</mat-icon>
+      @if (filtersActive()) {
+        <p>No cars match. Try a different search, or clear the filters.</p>
+        <button mat-flat-button type="button" (click)="clearFilters()">Clear filters</button>
+      } @else {
+        <p>No cars in the catalogue yet.</p>
+      }
     </div>
   } @else {
     <div class="table-wrap">
-      <table mat-table [dataSource]="cars()" class="cars-table">
+      <table
+        mat-table
+        matSort
+        [dataSource]="cars()"
+        [matSortActive]="filters().sort"
+        [matSortDirection]="filters().order"
+        matSortDisableClear
+        class="cars-table"
+        (matSortChange)="onSort($event)"
+      >
         <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Name</th>
           <td mat-cell *matCellDef="let car">{{ car.name }}</td>
         </ng-container>
 
         <ng-container matColumnDef="modelYear">
-          <th mat-header-cell *matHeaderCellDef>Year</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="modelYear">Year</th>
           <td mat-cell *matCellDef="let car">{{ car.modelYear }}</td>
         </ng-container>
 
         <ng-container matColumnDef="origin">
-          <th mat-header-cell *matHeaderCellDef>Origin</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="origin">Origin</th>
           <td mat-cell *matCellDef="let car">{{ originLabel(car.origin) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="mpg">
-          <th mat-header-cell *matHeaderCellDef>MPG</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="mpg">MPG</th>
           <td mat-cell *matCellDef="let car">{{ formatNumber(car.mpg) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="cylinders">
-          <th mat-header-cell *matHeaderCellDef>Cylinders</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="cylinders">Cylinders</th>
           <td mat-cell *matCellDef="let car">{{ car.cylinders }}</td>
         </ng-container>
 
         <ng-container matColumnDef="horsepower">
-          <th mat-header-cell *matHeaderCellDef>Horsepower</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="horsepower">Horsepower</th>
           <td mat-cell *matCellDef="let car">{{ formatNumber(car.horsepower) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="weight">
-          <th mat-header-cell *matHeaderCellDef>Weight (lbs)</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="weight">Weight (lbs)</th>
           <td mat-cell *matCellDef="let car">{{ car.weight }}</td>
         </ng-container>
 
         <ng-container matColumnDef="acceleration">
-          <th mat-header-cell *matHeaderCellDef>0–60 (sec)</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="acceleration">0–60 (sec)</th>
           <td mat-cell *matCellDef="let car">{{ car.acceleration }}</td>
         </ng-container>
 
