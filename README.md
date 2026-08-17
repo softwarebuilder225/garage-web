@@ -1,32 +1,14 @@
-# John's Garage (front-end)
+# John's Garage
 
-Angular app for John's car catalogue — FireHawk technical task.
+Angular frontend for the car catalogue. API: `johns-garage-api`.
 
-## Prerequisites
-
-- Node.js 20+
-- Backend API running at `http://localhost:3000`
-
-## Setup
+Usage notes: [GUIDE.md](./GUIDE.md)
 
 ```bash
 npm install
 npm start
 ```
 
-Open http://localhost:4200
+http://localhost:4200 (API on http://localhost:3000)
 
-The dev server proxies `/api` requests to the backend (`proxy.conf.json`).
-
-## Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm start` | Dev server on port 4200 |
-| `npm run build` | Production build |
-
-## API URL
-
-Default: `/api` (proxied in development).
-
-Edit `src/environments/environment.ts` if your deployed API uses a different base URL.
+`src/environments/environment.ts` sets `apiUrl`. `proxy.conf.json` is there if you switch `apiUrl` back to `/api`.
