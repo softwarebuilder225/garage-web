@@ -31,6 +31,17 @@ import {
 } from '../../models/car';
 import { CarsService } from '../../services/cars.service';
 
+type AddCarField =
+  | 'name'
+  | 'mpg'
+  | 'cylinders'
+  | 'displacement'
+  | 'horsepower'
+  | 'weight'
+  | 'acceleration'
+  | 'modelYear'
+  | 'origin';
+
 @Component({
   selector: 'app-catalogue',
   imports: [
@@ -120,7 +131,15 @@ export class Catalogue {
   }
 
   formatNumber(value: number | null): string {
-    return value === null ? '—' : String(value);
+    return value === null ? '-' : String(value);
+  }
+
+  formatWeight(value: number): string {
+    return new Intl.NumberFormat('en-US').format(value);
+  }
+
+  displayName(name: string): string {
+    return name.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
   }
 
   filtersActive(): boolean {
@@ -165,7 +184,7 @@ export class Catalogue {
         const blob = response.body;
 
         if (!blob) {
-          this.downloadError.set('The download came back empty. Please try again.');
+          this.downloadError.set('Download was empty.');
           return;
         }
 
@@ -174,10 +193,10 @@ export class Catalogue {
             try {
               const parsed = JSON.parse(text) as { error?: string };
               this.downloadError.set(
-                parsed.error ?? 'Could not download the CSV. Please try again.',
+                this.publicError(parsed.error ?? '', 'Could not download CSV.'),
               );
             } catch {
-              this.downloadError.set('Could not download the CSV. Please try again.');
+              this.downloadError.set('Could not download CSV.');
             }
           });
           return;
@@ -193,7 +212,7 @@ export class Catalogue {
             try {
               const parsed = JSON.parse(text) as { error?: string };
               this.downloadError.set(
-                parsed.error ?? 'Could not download the CSV. Please try again.',
+                this.publicError(parsed.error ?? '', 'Could not download CSV.'),
               );
             } catch {
               this.downloadError.set(this.readDownloadErrorMessage(error));
@@ -220,7 +239,7 @@ export class Catalogue {
     this.carsService.create(this.createCarPayload()).subscribe({
       next: () => {
         this.savingCar.set(false);
-        this.addCarMessage.set('Car added successfully.');
+        this.addCarMessage.set('Car added.');
         this.addCarForm.reset({
           name: '',
           mpg: '',
@@ -241,34 +260,12 @@ export class Catalogue {
     });
   }
 
-  fieldHasError(
-    controlName:
-      | 'name'
-      | 'mpg'
-      | 'cylinders'
-      | 'displacement'
-      | 'horsepower'
-      | 'weight'
-      | 'acceleration'
-      | 'modelYear'
-      | 'origin',
-  ): boolean {
+  fieldHasError(controlName: AddCarField): boolean {
     const control = this.addCarForm.controls[controlName];
     return control.invalid && (control.touched || control.dirty);
   }
 
-  fieldError(
-    controlName:
-      | 'name'
-      | 'mpg'
-      | 'cylinders'
-      | 'displacement'
-      | 'horsepower'
-      | 'weight'
-      | 'acceleration'
-      | 'modelYear'
-      | 'origin',
-  ): string {
+  fieldError(controlName: AddCarField): string {
     const control = this.addCarForm.controls[controlName];
 
     if (control.hasError('required')) {
@@ -278,7 +275,7 @@ export class Catalogue {
         case 'cylinders':
           return 'Cylinders is required.';
         case 'displacement':
-          return 'Displacement is required.';
+          return 'Engine size is required.';
         case 'weight':
           return 'Weight is required.';
         case 'acceleration':
@@ -296,7 +293,7 @@ export class Catalogue {
       return 'Car name is too long.';
     }
 
-    return 'Please check this field.';
+    return 'Check this field.';
   }
 
   private patchForm(query: CarListQuery): void {
@@ -371,15 +368,15 @@ export class Catalogue {
       const apiError = error.error as { error?: string } | null;
 
       if (apiError?.error) {
-        return apiError.error;
+        return this.publicError(apiError.error, 'Could not load cars.');
       }
 
       if (error.status === 0) {
-        return 'Cannot reach the server. Please make sure the API is running, then try again.';
+        return 'Could not reach the API.';
       }
     }
 
-    return 'Something went wrong while loading your cars. Please try again.';
+    return 'Could not load cars.';
   }
 
   private readCreateErrorMessage(error: unknown): string {
@@ -396,31 +393,47 @@ export class Catalogue {
       }
 
       if (apiError?.error) {
-        return apiError.error;
+        return this.publicError(apiError.error, 'Could not save the car.');
       }
 
       if (error.status === 0) {
-        return 'Cannot reach the server. Please make sure the API is running, then try again.';
+        return 'Could not reach the API.';
       }
     }
 
-    return 'Could not save the car. Please try again.';
+    return 'Could not save the car.';
   }
 
   private readDownloadErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
-        return 'Cannot reach the server. Please make sure the API is running, then try again.';
+        return 'Could not reach the API.';
       }
 
       const apiError = error.error as { error?: string } | Blob | null;
 
       if (apiError && typeof apiError === 'object' && 'error' in apiError && apiError.error) {
-        return apiError.error;
+        return this.publicError(apiError.error, 'Could not download CSV.');
       }
     }
 
-    return 'Could not download the CSV. Please try again.';
+    return 'Could not download CSV.';
+  }
+
+  // Don't show Firestore / credential noise in the UI.
+  private publicError(message: string, fallback: string): string {
+    const lower = message.toLowerCase();
+
+    if (
+      lower.includes('firestore') ||
+      lower.includes('permission_denied') ||
+      lower.includes('npm run') ||
+      lower.includes('service account')
+    ) {
+      return fallback;
+    }
+
+    return message || fallback;
   }
 
   private filenameFromResponse(header: string | null): string {

@@ -58,9 +58,9 @@
 
 .add-car-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.75rem 1rem;
-  padding: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.85rem 1rem;
+  padding: 1rem 1rem 1.25rem;
 }
 
 .wide-field {
@@ -89,15 +89,27 @@
   color: #b3261e;
 }
 
+.intro {
+  margin: 0;
+  color: #3c4043;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  max-width: 46rem;
+}
+
+.filters-title {
+  grid-column: 1 / -1;
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
 .filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.75rem 1rem;
   align-items: start;
-  padding: 1rem 1rem 0.25rem;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  padding: 1rem 1rem 0.35rem;
 }
 
 .search {
@@ -150,14 +162,15 @@
 }
 
 .cars-table .mat-mdc-header-cell {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .cars-table .mat-mdc-cell,
 .cars-table .mat-mdc-header-cell {
-  padding: 0.9rem 1rem;
+  padding: 1rem 1.1rem;
   white-space: nowrap;
+  font-size: 1rem;
 }
 
 .cars-table .mat-mdc-row:hover {

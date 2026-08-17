@@ -1,7 +1,7 @@
 <section class="catalogue">
   <header class="catalogue-header">
     <div>
-      <h1>Your cars</h1>
+      <h1>Cars</h1>
       @if (!loading() && !errorMessage()) {
         <p class="count">
           {{ total() }} {{ total() === 1 ? 'car' : 'cars' }}
@@ -16,45 +16,184 @@
       mat-flat-button
       type="button"
       class="download-button"
-      [disabled]="downloadingCsv() || loading()"
+      [disabled]="downloadingCsv() || cars().length === 0"
       (click)="downloadCsv()"
     >
       <mat-icon>download</mat-icon>
-      {{ downloadingCsv() ? 'Downloading…' : 'Download CSV' }}
+      {{ downloadingCsv() ? 'Downloading...' : 'Export CSV' }}
     </button>
   </header>
+
+  <p class="intro">Filters stay in the address bar.</p>
 
   @if (downloadError()) {
     <p class="form-message error download-error" role="alert">{{ downloadError() }}</p>
   }
 
-  <section class="add-car card-section">
+  <form class="filters card-section" [formGroup]="filterForm" aria-label="Find a car">
+    <h2 class="filters-title">Find a car</h2>
+
+    <mat-form-field appearance="outline" class="search">
+      <mat-label>Search by name</mat-label>
+      <input matInput formControlName="q" type="search" autocomplete="off" placeholder="e.g. toyota" />
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Made in</mat-label>
+      <mat-select formControlName="origin">
+        <mat-option value="">Any</mat-option>
+        @for (origin of origins; track origin) {
+          <mat-option [value]="origin">{{ originLabels[origin] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Cylinders</mat-label>
+      <mat-select formControlName="cylinders">
+        <mat-option value="">Any</mat-option>
+        @for (count of cylinderOptions; track count) {
+          <mat-option [value]="'' + count">{{ count }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>From year</mat-label>
+      <input matInput formControlName="minYear" type="number" min="1900" max="2030" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>To year</mat-label>
+      <input matInput formControlName="maxYear" type="number" min="1900" max="2030" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Lowest MPG</mat-label>
+      <input matInput formControlName="minMpg" type="number" min="0" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Highest MPG</mat-label>
+      <input matInput formControlName="maxMpg" type="number" min="0" />
+    </mat-form-field>
+
+    @if (filtersActive()) {
+      <button mat-stroked-button type="button" class="clear-filters" (click)="clearFilters()">
+        <mat-icon>filter_alt_off</mat-icon>
+        Clear filters
+      </button>
+    }
+  </form>
+
+  @if (loading()) {
+    <div class="status" role="status">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading cars...</p>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="status error" role="alert">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <p>{{ errorMessage() }}</p>
+      <button mat-flat-button type="button" (click)="retry()">
+        <mat-icon>refresh</mat-icon>
+        Try again
+      </button>
+    </div>
+  } @else if (cars().length === 0) {
+    <div class="status">
+      <mat-icon aria-hidden="true">search_off</mat-icon>
+      @if (filtersActive()) {
+        <p>No cars match these filters.</p>
+        <button mat-flat-button type="button" (click)="clearFilters()">Clear filters</button>
+      } @else {
+        <p>Nothing here yet. Add a car below.</p>
+      }
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table
+        mat-table
+        matSort
+        [dataSource]="cars()"
+        [matSortActive]="filters().sort"
+        [matSortDirection]="filters().order"
+        matSortDisableClear
+        class="cars-table"
+        (matSortChange)="onSort($event)"
+      >
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Name</th>
+          <td mat-cell *matCellDef="let car">{{ displayName(car.name) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="modelYear">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="modelYear">Year</th>
+          <td mat-cell *matCellDef="let car">{{ car.modelYear }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="origin">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="origin">Made in</th>
+          <td mat-cell *matCellDef="let car">{{ originLabel(car.origin) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="mpg">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="mpg">MPG</th>
+          <td mat-cell *matCellDef="let car">{{ formatNumber(car.mpg) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="cylinders">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="cylinders">Cylinders</th>
+          <td mat-cell *matCellDef="let car">{{ car.cylinders }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="horsepower">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="horsepower">Horsepower</th>
+          <td mat-cell *matCellDef="let car">{{ formatNumber(car.horsepower) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="weight">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="weight">Weight (lbs)</th>
+          <td mat-cell *matCellDef="let car">{{ formatWeight(car.weight) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="acceleration">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="acceleration">0–60 (sec)</th>
+          <td mat-cell *matCellDef="let car">{{ car.acceleration }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
+  }
+
+  <section class="add-car card-section" id="add-car">
     <div class="section-heading">
-      <div>
-        <h2>Add a car</h2>
-        <p>Add a new car to the catalogue for John.</p>
-      </div>
+      <h2>Add a car</h2>
+      <p>MPG and horsepower can be left blank.</p>
     </div>
 
     @if (addCarMessage()) {
-      <p class="form-message success">{{ addCarMessage() }}</p>
+      <p class="form-message success" role="status">{{ addCarMessage() }}</p>
     }
 
     @if (addCarError()) {
-      <p class="form-message error">{{ addCarError() }}</p>
+      <p class="form-message error" role="alert">{{ addCarError() }}</p>
     }
 
-    <form class="add-car-form" [formGroup]="addCarForm" (ngSubmit)="submitCar()">
+    <form class="add-car-form" [formGroup]="addCarForm" (ngSubmit)="submitCar()" autocomplete="off">
       <mat-form-field appearance="outline" class="wide-field">
         <mat-label>Car name</mat-label>
-        <input matInput formControlName="name" maxlength="120" />
+        <input matInput formControlName="name" maxlength="120" placeholder="e.g. Ford Pinto" />
         @if (fieldHasError('name')) {
           <mat-error>{{ fieldError('name') }}</mat-error>
         }
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>Origin</mat-label>
+        <mat-label>Made in</mat-label>
         <mat-select formControlName="origin">
           @for (origin of origins; track origin) {
             <mat-option [value]="origin">{{ originLabels[origin] }}</mat-option>
@@ -86,8 +225,9 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>Displacement</mat-label>
+        <mat-label>Engine size</mat-label>
         <input matInput formControlName="displacement" type="number" min="1" />
+        <mat-hint>Displacement, in cubic inches</mat-hint>
         @if (fieldHasError('displacement')) {
           <mat-error>{{ fieldError('displacement') }}</mat-error>
         }
@@ -102,7 +242,7 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>Acceleration (sec)</mat-label>
+        <mat-label>0–60 time (seconds)</mat-label>
         <input matInput formControlName="acceleration" type="number" min="1" step="0.1" />
         @if (fieldHasError('acceleration')) {
           <mat-error>{{ fieldError('acceleration') }}</mat-error>
@@ -110,158 +250,23 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>MPG</mat-label>
+        <mat-label>Fuel economy (MPG)</mat-label>
         <input matInput formControlName="mpg" type="number" min="0" step="0.1" />
+        <mat-hint>Optional</mat-hint>
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Horsepower</mat-label>
         <input matInput formControlName="horsepower" type="number" min="0" />
+        <mat-hint>Optional</mat-hint>
       </mat-form-field>
 
       <div class="form-actions">
         <button mat-flat-button type="submit" [disabled]="savingCar()">
           <mat-icon>add</mat-icon>
-          {{ savingCar() ? 'Saving…' : 'Add car' }}
+          {{ savingCar() ? 'Saving...' : 'Add car' }}
         </button>
       </div>
     </form>
   </section>
-
-  <form class="filters" [formGroup]="filterForm">
-    <mat-form-field appearance="outline" class="search">
-      <mat-label>Search by name</mat-label>
-      <input matInput formControlName="q" type="search" autocomplete="off" />
-      <mat-icon matPrefix>search</mat-icon>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Origin</mat-label>
-      <mat-select formControlName="origin">
-        <mat-option value="">All countries</mat-option>
-        @for (origin of origins; track origin) {
-          <mat-option [value]="origin">{{ originLabels[origin] }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Cylinders</mat-label>
-      <mat-select formControlName="cylinders">
-        <mat-option value="">Any</mat-option>
-        @for (count of cylinderOptions; track count) {
-          <mat-option [value]="'' + count">{{ count }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>From year</mat-label>
-      <input matInput formControlName="minYear" type="number" min="1900" max="2030" />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>To year</mat-label>
-      <input matInput formControlName="maxYear" type="number" min="1900" max="2030" />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Min MPG</mat-label>
-      <input matInput formControlName="minMpg" type="number" min="0" />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Max MPG</mat-label>
-      <input matInput formControlName="maxMpg" type="number" min="0" />
-    </mat-form-field>
-
-    @if (filtersActive()) {
-      <button mat-stroked-button type="button" class="clear-filters" (click)="clearFilters()">
-        <mat-icon>filter_alt_off</mat-icon>
-        Clear filters
-      </button>
-    }
-  </form>
-
-  @if (loading()) {
-    <div class="status" role="status">
-      <mat-spinner diameter="40"></mat-spinner>
-      <p>Loading your cars…</p>
-    </div>
-  } @else if (errorMessage()) {
-    <div class="status error" role="alert">
-      <mat-icon aria-hidden="true">error_outline</mat-icon>
-      <p>{{ errorMessage() }}</p>
-      <button mat-flat-button type="button" (click)="retry()">
-        <mat-icon>refresh</mat-icon>
-        Try again
-      </button>
-    </div>
-  } @else if (cars().length === 0) {
-    <div class="status">
-      <mat-icon aria-hidden="true">search_off</mat-icon>
-      @if (filtersActive()) {
-        <p>No cars match. Try a different search, or clear the filters.</p>
-        <button mat-flat-button type="button" (click)="clearFilters()">Clear filters</button>
-      } @else {
-        <p>No cars in the catalogue yet.</p>
-      }
-    </div>
-  } @else {
-    <div class="table-wrap">
-      <table
-        mat-table
-        matSort
-        [dataSource]="cars()"
-        [matSortActive]="filters().sort"
-        [matSortDirection]="filters().order"
-        matSortDisableClear
-        class="cars-table"
-        (matSortChange)="onSort($event)"
-      >
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Name</th>
-          <td mat-cell *matCellDef="let car">{{ car.name }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="modelYear">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="modelYear">Year</th>
-          <td mat-cell *matCellDef="let car">{{ car.modelYear }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="origin">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="origin">Origin</th>
-          <td mat-cell *matCellDef="let car">{{ originLabel(car.origin) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="mpg">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="mpg">MPG</th>
-          <td mat-cell *matCellDef="let car">{{ formatNumber(car.mpg) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="cylinders">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="cylinders">Cylinders</th>
-          <td mat-cell *matCellDef="let car">{{ car.cylinders }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="horsepower">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="horsepower">Horsepower</th>
-          <td mat-cell *matCellDef="let car">{{ formatNumber(car.horsepower) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="weight">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="weight">Weight (lbs)</th>
-          <td mat-cell *matCellDef="let car">{{ car.weight }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="acceleration">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="acceleration">0–60 (sec)</th>
-          <td mat-cell *matCellDef="let car">{{ car.acceleration }}</td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-      </table>
-    </div>
-  }
 </section>
